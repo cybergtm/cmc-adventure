@@ -3,7 +3,7 @@ const agendaSnapshot = "November 12, 2026";
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday"];
 const dayLabel = (day, dated = false) => dated ? `${DAY_NAMES[day - 1]}, Nov ${day + 14}` : `Day ${day}`;
 const clock = min => `${Math.floor(min / 60) % 12 || 12}:${String(min % 60).padStart(2, "0")} ${min < 720 ? "AM" : "PM"}`;
-import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=4";
+import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=5";
 
 const app = document.querySelector("#app");
 const announce = document.querySelector("#announce");
@@ -391,7 +391,7 @@ function cover(){
     <h1 id="t" tabindex="-1">The Case of the Double-Booked Marketer</h1>
     <p class="edition">November 2026 · Austin &amp; online</p>
     <div class="cover-art"><img src="assets/cover-path.webp" width="540" height="684" alt="Painted view from above of a marketer in a hallway, with a hand drawing a dotted gold path that forks toward four doors, one of them glowing"></div>
-    <p class="lede">A free choose-your-own-adventure game that suggests sessions for Cyber Marketing Con 2026. Answer five questions, open the doors that call to you, and leave with session recommendations.</p>
+    <p class="lede">A free interactive fiction game that suggests sessions for Cyber Marketing Con 2026. Answer five questions, open the doors that call to you, and leave with session recommendations.</p>
     <div class="actions"><button class="btn primary" data-go="edition">${isFinished() ? "See your results" : state.edition ? "Continue your game" : "Begin"}</button><button class="btn" data-page="characters">Meet the characters</button></div>
     <ol class="how">
       <li><strong>Find your character</strong>Five quick questions.</li>
@@ -769,7 +769,7 @@ function aboutScreen(){
     <header><h1 id="t" tabindex="-1">About</h1><p class="lede">Choose Your Own CMC is an independent, paperback-inspired game for planning your CyberMarketingCon 2026.</p></header>
     <section class="story">
       <h2>What this is</h2>
-      <p>CyberMarketingCon 2026 has about 150 sessions and events across four days, with up to seven happening at the same time. That is a wonderful problem and a slightly overwhelming one. This game turns the agenda into a choose-your-own-adventure paperback: you find your character, walk down a hallway of doors and leave with a schedule that fits you.</p>
+      <p>CyberMarketingCon 2026 has about 150 sessions and events across four days, with up to seven happening at the same time. That is a wonderful problem and a slightly overwhelming one. This game turns the agenda into a piece of interactive fiction, styled like a paperback: you find your character, walk down a hallway of doors and leave with a schedule that fits you.</p>
       <p>It is a fan project. It isn’t run by the conference, and it doesn’t replace the Hubilo app. Hubilo is where the official schedule, rooms and updates live.</p>
       <h2>What it’s meant to do</h2>
       <p>The game only stops you where a few choices are all valid options based on your preferences: the handful of moments when several sessions collide and it’s a close call for your character. When one session is clearly the best match, the game recommends it and moves on.</p>
