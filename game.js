@@ -3,7 +3,7 @@ const agendaSnapshot = "November 12, 2026";
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday"];
 const dayLabel = (day, dated = false) => dated ? `${DAY_NAMES[day - 1]}, Nov ${day + 14}` : `Day ${day}`;
 const clock = min => `${Math.floor(min / 60) % 12 || 12}:${String(min % 60).padStart(2, "0")} ${min < 720 ? "AM" : "PM"}`;
-import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=6";
+import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=7";
 
 const app = document.querySelector("#app");
 const announce = document.querySelector("#announce");
@@ -670,6 +670,7 @@ function endingScreen(){
     ${agendaList(list)}
     <div class="actions">
       ${list.length ? `<button class="btn primary" data-copy>Copy agenda</button>` : ""}
+      <button class="btn" data-page="stats">See how everyone else played</button>
       <button class="btn quiet" data-replay>Clear door picks and replay</button>
     </div>
     <p class="status" id="status" role="status"></p>
@@ -677,7 +678,7 @@ function endingScreen(){
   </section>`;
 }
 
-const SCREENS = {about: aboutScreen, privacy: privacyScreen, terms: termsScreen, cover, edition: editionScreen, characters: charactersScreen, quiz: quizScreen, character: characterScreen, doors: doorsScreen, ending: endingScreen};
+const SCREENS = {stats: censusScreen, about: aboutScreen, privacy: privacyScreen, terms: termsScreen, cover, edition: editionScreen, characters: charactersScreen, quiz: quizScreen, character: characterScreen, doors: doorsScreen, ending: endingScreen};
 const navBar = document.querySelector("#game-nav");
 function render(focus = true){
   restartButton.hidden = !state.edition;
@@ -761,6 +762,77 @@ function copyAgenda(){
   const label = state.edition === "online" ? "Online" : "In person";
   const text = [`Cyber Marketing Con 2026 · ${label} · Central time`, ...[...new Set(list.map(e => e.day))].map(d => [dayLabel(d, true), ...list.filter(e => e.day === d).map(e => `${clock(e.start)}–${clock(e.end)}  ${e.title}`)].join("\n"))].join("\n\n");
   return navigator.clipboard.writeText(text).then(() => status.textContent = "Agenda copied. Paste it into your notes or calendar.", () => status.textContent = "Clipboard access is unavailable. Select the agenda above to copy it.");
+}
+
+/* ---------- The Census: public, anonymous play counts ---------- */
+
+// Reads GoatCounter's public per-path counts (no login, no personal data). It needs the
+// "allow using the visitor counter" setting switched on in GoatCounter.
+const CENSUS_PATHS = ["quiz-finished", "results-reached", "agenda-copied", "attending-in-person", "attending-online",
+  ...Object.keys(CHARACTERS).map(k => `character-${k}`)];
+const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
+let census = null;   // null = not loaded, {loading:true}, {counts, sample?}, or {empty:true}
+async function loadCensus(){
+  census = {loading: true};
+  const counts = {};
+  await Promise.all(CENSUS_PATHS.map(async name => {
+    try {
+      const r = await fetch(`https://${GOATCOUNTER_CODE}.goatcounter.com/counter/${encodeURIComponent("event/" + name)}.json`);
+      if (!r.ok) return;
+      const n = Number(String((await r.json()).count).replace(/[^0-9]/g, ""));
+      if (Number.isFinite(n)) counts[name] = n;
+    } catch {}
+  }));
+  if (Object.keys(counts).length) census = {counts};
+  else if (IS_LOCAL) census = {sample: true, counts: {"quiz-finished": 214, "results-reached": 163, "agenda-copied": 71, "attending-in-person": 158, "attending-online": 56,
+    "character-lore": 31, "character-pipeline": 44, "character-spotlight": 38, "character-road": 22, "character-guild": 19, "character-strategist": 27, "character-founder": 14, "character-federal": 8, "character-connector": 11}};
+  else census = {empty: true};
+  if (screen === "stats") render(false);
+}
+function censusScreen(){
+  if (!census) loadCensus();
+  const shell = body => `<section class="page census" aria-labelledby="t">
+    <p class="eyebrow">The Census</p>
+    <h1 id="t" tabindex="-1">Who’s walking these halls?</h1>
+    <p class="lede">A running tally of everyone who has played. Anonymous counts only: no names, no answers, no picks.</p>
+    ${body}
+    <div class="actions"><button class="btn primary" data-go="edition">${isFinished() ? "See your results" : state.edition ? "Continue your game" : "Add yourself to the count"}</button><button class="btn" data-page="characters">Meet the characters</button></div>
+  </section>`;
+  if (!census || census.loading) return shell(`<p class="census-note" role="status">Counting heads…</p>`);
+  if (census.empty) return shell(`<p class="census-note">The census taker is still sharpening pencils. Check back once a few more marketers have played.</p>`);
+  const c = name => census.counts[name] || 0;
+  const players = c("quiz-finished");
+  const cast = Object.entries(CHARACTERS).map(([key, [name]]) => ({key, name, n: c(`character-${key}`)})).sort((a, b) => b.n - a.n);
+  const castTotal = cast.reduce((n, x) => n + x.n, 0);
+  const top = cast[0], seen = cast.filter(x => x.n > 0), rare = seen[seen.length - 1];
+  const inPerson = c("attending-in-person"), online = c("attending-online"), both = inPerson + online;
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  const fmt = n => n.toLocaleString("en-US");
+  return shell(`
+    ${census.sample ? `<p class="feedback"><strong>Sample numbers.</strong> This is a preview. Real counts appear on the live site once public counts are switched on in GoatCounter.</p>` : ""}
+    <ul class="census-big">
+      <li><strong>${fmt(players)}</strong><span>${players === 1 ? "marketer has" : "marketers have"} met their character</span></li>
+      <li><strong>${fmt(c("results-reached"))}</strong><span>made it through every hallway</span></li>
+      <li><strong>${fmt(c("agenda-copied"))}</strong><span>${c("agenda-copied") === 1 ? "agenda" : "agendas"} carried home</span></li>
+    </ul>
+    <h2>The cast, by head count</h2>
+    ${castTotal ? `<ol class="census-cast">${cast.map(x => `<li class="${x === top ? "top" : ""}">
+      <span class="sigil" aria-hidden="true">${ICONS[x.key]}</span>
+      <span class="census-name">${esc(x.name)}${x === top ? ` <em>Most spotted</em>` : x === rare && seen.length > 1 ? ` <em>Rarest sighting</em>` : ""}</span>
+      <span class="census-bar" aria-hidden="true"><i style="width:${Math.max(x.n ? 3 : 0, pct(x.n, top.n))}%"></i></span>
+      <span class="census-n">${fmt(x.n)} <small>${pct(x.n, castTotal)}%</small></span>
+    </li>`).join("")}</ol>
+    ${cast.some(x => !x.n) ? `<p class="subtle">Not yet spotted: ${cast.filter(x => !x.n).map(x => esc(x.name)).join(", ")}. Someone has to be first.</p>` : ""}` : `<p class="census-note">No characters counted yet.</p>`}
+    <h2>Where they’re joining from</h2>
+    ${both ? `<div class="census-split" role="img" aria-label="${pct(inPerson, both)} percent in person, ${pct(online, both)} percent online"><i style="width:${pct(inPerson, both)}%"></i></div>
+    <p class="census-legend"><span><b class="dot in"></b>In person in Austin: ${fmt(inPerson)} (${pct(inPerson, both)}%)</span><span><b class="dot on"></b>Online: ${fmt(online)} (${pct(online, both)}%)</span></p>` : `<p class="census-note">Nobody counted yet.</p>`}
+    <h2>Field notes</h2>
+    <ul class="census-notes">
+      ${players ? `<li>${pct(c("results-reached"), players)}% of players who met their character went on to open every door.</li>` : ""}
+      ${castTotal ? `<li>You have a ${pct(top.n, castTotal)}% chance of bumping into ${/^[AEIOU]/.test(top.name.replace(/^The /, "")) ? "an" : "a"} ${esc(top.name.replace(/^The /, ""))} in the hallway.</li>` : ""}
+      ${c("character-connector") ? `<li>${fmt(c("character-connector"))} ${c("character-connector") === 1 ? "person has" : "people have"} unlocked the hidden character.</li>` : `<li>Nobody has unlocked the hidden character yet.</li>`}
+    </ul>
+    <p class="subtle">Counts come from GoatCounter and update as people play. They count visits, so one person playing twice may be counted twice.</p>`);
 }
 
 /* ---------- About, privacy and terms ---------- */
@@ -912,7 +984,7 @@ function privacyScreen(){
     <h2>Hosting and external services</h2>
     <p>GitHub hosts this site through GitHub Pages and may log technical information, such as your IP address, to deliver and protect it. The site loads fonts from Google Fonts, which means your browser connects to Google to request them.</p>
     <h2>Visit counts</h2>
-    <p>The game uses GoatCounter, a privacy-friendly analytics service, to count visits and a few game milestones: finishing the quiz, which character came up, whether you’re attending in person or online, reaching your results and copying your agenda. GoatCounter doesn’t use cookies and doesn’t collect personal information. Your individual answers and door picks are never sent.</p>
+    <p>The game uses GoatCounter, a privacy-friendly analytics service, to count visits and a few game milestones: finishing the quiz, which character came up, whether you’re attending in person or online, reaching your results and copying your agenda. GoatCounter doesn’t use cookies and doesn’t collect personal information. Your individual answers and door picks are never sent. The totals for these milestones are shown publicly on The Census page.</p>
     <ul><li><a href="https://www.goatcounter.com/help/privacy" target="_blank" rel="noopener">GoatCounter privacy information</a></li></ul>
     <ul><li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a></li>
     <li><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></li></ul>
