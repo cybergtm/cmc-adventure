@@ -3,12 +3,27 @@ const agendaSnapshot = "November 12, 2026";
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday"];
 const dayLabel = (day, dated = false) => dated ? `${DAY_NAMES[day - 1]}, Nov ${day + 14}` : `Day ${day}`;
 const clock = min => `${Math.floor(min / 60) % 12 || 12}:${String(min % 60).padStart(2, "0")} ${min < 720 ? "AM" : "PM"}`;
-import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=5";
+import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=6";
 
 const app = document.querySelector("#app");
 const announce = document.querySelector("#announce");
 const restartButton = document.querySelector("#restart");
 const KEY = "cmc-game-2026";
+
+/* ---------- Visit counting (GoatCounter) ---------- */
+// Privacy-friendly counts: no cookies, no personal data. Leave the code empty to switch it off.
+const GOATCOUNTER_CODE = "cybergtm";
+if (GOATCOUNTER_CODE) {
+  const tag = document.createElement("script");
+  tag.async = true;
+  tag.src = "https://gc.zgo.at/count.js";
+  tag.dataset.goatcounter = `https://${GOATCOUNTER_CODE}.goatcounter.com/count`;
+  document.head.append(tag);
+}
+// Count a game milestone, such as "quiz-finished". Never includes answers or picks.
+function track(name){
+  try { window.goatcounter?.count?.({path: `event/${name}`, title: name, event: true}); } catch {}
+}
 const TOUGH = 3; // a time slot needs at least this many sessions to be a real choice
 const HALLWAYS = 7; // only the closest calls become hallways; clear winners are picked for you
 
@@ -305,7 +320,7 @@ function clues(e, edition){
 const fresh = () => ({edition: null, answers: [], tracks: [], picks: [], extras: [], dropped: [], step: 0, open: null, skipped: []});
 let state = fresh();
 try { state = {...state, ...JSON.parse(localStorage.getItem(KEY))}; } catch {}
-const resetRun = () => Object.assign(state, {picks: [], extras: [], dropped: [], passed: [], step: 0, open: null, skipped: [], swap: null});
+const resetRun = () => Object.assign(state, {picks: [], extras: [], dropped: [], passed: [], step: 0, open: null, skipped: [], swap: null, counted: false});
 let screen = "cover";
 let feedback = "";
 
@@ -672,6 +687,7 @@ function render(focus = true){
   app.innerHTML = SCREENS[screen]();
   // Once every hallway is done, the Doors tab becomes Results (until you reset).
   const finished = Boolean(ready) && state.step >= quest().length;
+  if (finished && !state.counted) { state.counted = true; save(); track("results-reached"); }
   for (const b of navBar.querySelectorAll("[data-nav]")) {
     const target = b.dataset.nav;
     if (target === "doors") b.hidden = finished;
@@ -795,7 +811,7 @@ function aboutScreen(){
       </details>
       <details>
         <summary>Do I need an account, and what does it collect?</summary>
-        <p>No account, no sign-in and no analytics. Your answers and door picks are saved in your own browser’s local storage and never leave it. Reset removes them, and so does clearing this site’s data in your browser.</p>
+        <p>No account and no sign-in. Your answers and door picks are saved in your own browser’s local storage and never leave it. The site counts visits and a few game milestones anonymously, with no cookies: for example, how many people finish the quiz and which character they get. Reset removes them, and so does clearing this site’s data in your browser.</p>
       </details>
       <details>
         <summary>How does it decide what to recommend?</summary>
@@ -894,7 +910,10 @@ function privacyScreen(){
     <h2>Copying your agenda</h2>
     <p>Copying the agenda puts it on your device’s clipboard. Anyone you share it with can see the sessions it lists.</p>
     <h2>Hosting and external services</h2>
-    <p>GitHub hosts this site through GitHub Pages and may log technical information, such as your IP address, to deliver and protect it. The site loads fonts from Google Fonts, which means your browser connects to Google to request them. The game has no analytics or tracking scripts.</p>
+    <p>GitHub hosts this site through GitHub Pages and may log technical information, such as your IP address, to deliver and protect it. The site loads fonts from Google Fonts, which means your browser connects to Google to request them.</p>
+    <h2>Visit counts</h2>
+    <p>The game uses GoatCounter, a privacy-friendly analytics service, to count visits and a few game milestones: finishing the quiz, which character came up, whether you’re attending in person or online, reaching your results and copying your agenda. GoatCounter doesn’t use cookies and doesn’t collect personal information. Your individual answers and door picks are never sent.</p>
+    <ul><li><a href="https://www.goatcounter.com/help/privacy" target="_blank" rel="noopener">GoatCounter privacy information</a></li></ul>
     <ul><li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a></li>
     <li><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></li></ul>
     <p>If you follow a link to another website, that website’s privacy policy applies.</p>
@@ -943,7 +962,12 @@ app.addEventListener("click", ev => {
     state.answers = [...state.answers.slice(0, Math.min(state.answers.length, QUIZ.length - 1)), Number(d.answer)];
     state.open = null;
     const done = state.answers.length >= QUIZ.length;
-    if (done) state.tracks = suggestedTracks();
+    if (done) {
+      state.tracks = suggestedTracks();
+      track("quiz-finished");
+      track(`character-${characterFor(state.answers).key}`);
+      track(`attending-${state.edition === "online" ? "online" : "in-person"}`);
+    }
     save();
     return go(done ? "character" : "quiz");
   }
@@ -1005,7 +1029,7 @@ app.addEventListener("click", ev => {
     if (!state.open && state.picks.some(id => inSlot(id, slots[state.step]))) feedback = `Your pick here: “${byId[state.picks.find(id => inSlot(id, slots[state.step]))].title}”. Keep a door to replace it.`;
     save(); return render();
   }
-  if ("copy" in d) return copyAgenda();
+  if ("copy" in d) { track("agenda-copied"); return copyAgenda(); }
   if (d.page) return go(d.page);
   if ("replay" in d) { resetRun(); save(); return go("doors"); }
 
