@@ -725,8 +725,10 @@ function restore(i){
   record();
   announce.textContent = back ? "Went back one step." : "Went forward one step.";
 }
-undoButton.addEventListener("click", () => { if (at > 0) history.back(); });
-redoButton.addEventListener("click", () => { if (at < trail.length - 1) history.forward(); });
+// The buttons step along the trail directly. (Asking the browser to go "back" is unreliable:
+// browsers may skip history entries that weren't created by a real click.)
+undoButton.addEventListener("click", () => restore(at - 1));
+redoButton.addEventListener("click", () => restore(at + 1));
 window.addEventListener("popstate", ev => restore(ev.state?.cmc));
 document.addEventListener("keydown", ev => {
   if (!(ev.metaKey || ev.ctrlKey) || ev.key.toLowerCase() !== "z" || ev.target.closest("input, textarea, select")) return;
