@@ -3,7 +3,7 @@ const agendaSnapshot = "November 12, 2026";
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday"];
 const dayLabel = (day, dated = false) => dated ? `${DAY_NAMES[day - 1]}, Nov ${day + 14}` : `Day ${day}`;
 const clock = min => `${Math.floor(min / 60) % 12 || 12}:${String(min % 60).padStart(2, "0")} ${min < 720 ? "AM" : "PM"}`;
-import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js";
+import {QUIZ, CHARACTERS, profileFrom, characterFor} from "./characters.js?v=4";
 
 const app = document.querySelector("#app");
 const announce = document.querySelector("#announce");
