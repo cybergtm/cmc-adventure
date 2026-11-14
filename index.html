@@ -11,7 +11,7 @@
 <meta property="og:title" content="Choose Your Own CMC: The Case of the Double-Booked Marketer">
 <meta property="og:description" content="Find your character, open mystery doors and leave with your Cyber Marketing Con 2026 agenda. Free and independent, in person or online.">
 <meta property="og:url" content="https://cybergtm.github.io/cmc-adventure/">
-<meta property="og:image" content="https://cybergtm.github.io/cmc-adventure/assets/share-card.jpg">
+<meta property="og:image" content="https://cybergtm.github.io/cmc-adventure/assets/share-card-v2.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Choose Your Own Cyber Marketing Con: The Case of the Double-Booked Marketer">
@@ -40,6 +40,9 @@ p{margin:0 0 .7em}
 .header-links{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .header-links a,.header-links button{display:inline-flex;align-items:center;min-height:44px;padding:6px 10px;border:1px solid transparent;border-radius:2px;background:none;color:var(--navy);font:650 .875rem/1.2 var(--sans);text-decoration:none}
 .header-links a:hover,.header-links button:hover{background:#f1eaf8;color:#542682}
+.header-links button:disabled{opacity:.4;cursor:default}
+.header-links button:disabled:hover{background:none;color:var(--navy)}
+.step-btn{gap:4px}
 .game-nav{display:inline-flex;gap:2px}.game-nav[hidden],.game-nav [hidden]{display:none}
 .header-links [aria-current="page"]{background:#f1eaf8;color:#542682;border-color:#d8c6e8}
 .reset-options{display:grid;gap:8px;margin-top:12px}
@@ -312,7 +315,10 @@ footer a{color:inherit;font-weight:700}
   .masthead{white-space:nowrap}
   .masthead strong{font-size:1rem}
   .header-links{justify-content:flex-start;margin-left:-10px;gap:0}
-  .header-links a,.header-links button{min-height:40px;padding:6px 10px}
+  .header-links{flex-wrap:nowrap}
+  .header-links a,.header-links button{min-height:40px;padding:6px 7px;font-size:.84rem}
+  .step-btn .lbl{display:none}
+  .header-links .step-btn{font-size:1.1rem;padding:6px 6px}
   .conference-banner{padding-block:8px}
 }
 </style>
@@ -323,6 +329,8 @@ footer a{color:inherit;font-weight:700}
   <nav class="header-links" aria-label="Site">
     <button type="button" data-page="about">About</button>
     <span id="game-nav" class="game-nav" hidden><button type="button" data-nav="character">Character</button><button type="button" data-nav="doors">Doors</button><button type="button" data-nav="results" hidden>Results</button></span>
+    <button type="button" id="undo" class="step-btn" aria-label="Undo: go back one step" title="Undo (go back one step)" hidden><span aria-hidden="true">↶</span><span class="lbl"> Undo</span></button>
+    <button type="button" id="redo" class="step-btn" aria-label="Redo: go forward one step" title="Redo (go forward one step)" hidden><span aria-hidden="true">↷</span><span class="lbl"> Redo</span></button>
     <button type="button" id="restart" hidden>Reset…</button>
   </nav>
 </header>

@@ -687,8 +687,52 @@ function render(focus = true){
     here ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current");
   }
   if (focus) { window.scrollTo(0, 0); app.querySelector("#reveal-t, h1")?.focus({preventScroll: true}); }
+  record();
 }
 function go(next){ screen = next; feedback = ""; render(); }
+
+/* ---------- Undo, redo and the browser's Back button ---------- */
+
+// Every screen change or action leaves a snapshot on a trail. Undo and Redo step along it,
+// and each snapshot is also a browser history entry, so the Back and Forward buttons do the same.
+const trail = [];
+let at = -1;
+let restoring = false;
+const undoButton = document.querySelector("#undo");
+const redoButton = document.querySelector("#redo");
+function record(){
+  const snap = JSON.stringify({state, screen});
+  if (!restoring && snap !== trail[at]) {
+    trail.splice(at + 1);
+    trail.push(snap);
+    at = trail.length - 1;
+    try { at === 0 ? history.replaceState({cmc: at}, "") : history.pushState({cmc: at}, ""); } catch {}
+  }
+  undoButton.hidden = redoButton.hidden = trail.length < 2;
+  undoButton.disabled = at <= 0;
+  redoButton.disabled = at >= trail.length - 1;
+}
+function restore(i){
+  if (!Number.isInteger(i) || i < 0 || i >= trail.length || i === at) return;
+  const back = i < at;
+  at = i;
+  ({state, screen} = JSON.parse(trail[i]));
+  feedback = "";
+  restoring = true;
+  save();
+  render();
+  restoring = false;
+  record();
+  announce.textContent = back ? "Went back one step." : "Went forward one step.";
+}
+undoButton.addEventListener("click", () => { if (at > 0) history.back(); });
+redoButton.addEventListener("click", () => { if (at < trail.length - 1) history.forward(); });
+window.addEventListener("popstate", ev => restore(ev.state?.cmc));
+document.addEventListener("keydown", ev => {
+  if (!(ev.metaKey || ev.ctrlKey) || ev.key.toLowerCase() !== "z" || ev.target.closest("input, textarea, select")) return;
+  ev.preventDefault();
+  (ev.shiftKey ? redoButton : undoButton).click();
+});
 
 /* ---------- Take it home ---------- */
 
