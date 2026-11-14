@@ -513,12 +513,6 @@ function characterScreen(){
   </section>`;
 }
 
-function satchel(){
-  const list = picks();
-  return `<details class="satchel"><summary>Your agenda so far (${list.length})</summary>
-    ${list.length ? `<ol>${list.map(e => `<li>${esc(e.title)}<small>${dayLabel(e.day, true).split(",")[0]} ${clock(e.start)}${isAuto(e.id) ? " · recommended for you" : ""}</small></li>`).join("")}</ol>` : `<p class="subtle">Nothing yet. Open a door.</p>`}
-  </details>`;
-}
 
 function doorCard(d, n, slot, currentId = null){
   const e = byId[d.id];
@@ -612,13 +606,12 @@ function doorsScreen(){
       ${slot.subtitle && !open ? `<p class="chapter-sub">${esc(slot.subtitle)}</p>` : ""}
       ${feedback ? `<p class="feedback">${esc(feedback)}</p>` : ""}
       ${crowded && !open ? `<p class="feedback">Your ${dayShort(slot.day)} is already pretty full. Skipping this one is totally fine.</p>` : ""}
-      ${open ? revealCard(open, slot) : `<p class="lede">${slot.doors.length === 1 ? "One door stands before you." : `${slot.doors.length} doors stand before you.`} The exact time is behind the door.</p>
-        <div class="hallway"><div class="door-row">${slot.doors.map((d, n) => doorCard(d, n, slot)).join("")}</div></div>`}
+      ${open ? revealCard(open, slot) : `<div class="hallway"><div class="door-row">${slot.doors.map((d, n) => doorCard(d, n, slot)).join("")}</div></div>`}
       <div class="door-tools">
         <button class="btn quiet small" data-prev ${state.step ? "" : "disabled"}>← Previous door</button>
         <button class="btn quiet small" data-skip>Skip this one →</button>
       </div>
-    ${satchel()}</div></div>
+    </div></div>
   </section>`;
 }
 
@@ -698,8 +691,10 @@ function go(next){ screen = next; feedback = ""; render(); }
 const trail = [];
 let at = -1;
 let restoring = false;
-const undoButton = document.querySelector("#undo");
-const redoButton = document.querySelector("#redo");
+const PAGE_TOOLS = `<div class="page-tools" role="group" aria-label="Undo and redo">
+  <button type="button" class="btn quiet small" data-undo aria-label="Undo: go back one step"><span aria-hidden="true">↶</span> Undo</button>
+  <button type="button" class="btn quiet small" data-redo aria-label="Redo: go forward one step"><span aria-hidden="true">↷</span> Redo</button>
+</div>`;
 function record(){
   const snap = JSON.stringify({state, screen});
   if (!restoring && snap !== trail[at]) {
@@ -708,9 +703,13 @@ function record(){
     at = trail.length - 1;
     try { at === 0 ? history.replaceState({cmc: at}, "") : history.pushState({cmc: at}, ""); } catch {}
   }
-  undoButton.hidden = redoButton.hidden = trail.length < 2;
-  undoButton.disabled = at <= 0;
-  redoButton.disabled = at >= trail.length - 1;
+  // The Undo and Redo buttons sit at the top of the current page of the book.
+  const page = app.querySelector(".page");
+  if (page && trail.length > 1) {
+    if (!page.querySelector(".page-tools")) page.insertAdjacentHTML("afterbegin", PAGE_TOOLS);
+    page.querySelector("[data-undo]").disabled = at <= 0;
+    page.querySelector("[data-redo]").disabled = at >= trail.length - 1;
+  }
 }
 function restore(i){
   if (!Number.isInteger(i) || i < 0 || i >= trail.length || i === at) return;
@@ -727,13 +726,15 @@ function restore(i){
 }
 // The buttons step along the trail directly. (Asking the browser to go "back" is unreliable:
 // browsers may skip history entries that weren't created by a real click.)
-undoButton.addEventListener("click", () => restore(at - 1));
-redoButton.addEventListener("click", () => restore(at + 1));
+app.addEventListener("click", ev => {
+  if (ev.target.closest("[data-undo]")) restore(at - 1);
+  else if (ev.target.closest("[data-redo]")) restore(at + 1);
+});
 window.addEventListener("popstate", ev => restore(ev.state?.cmc));
 document.addEventListener("keydown", ev => {
   if (!(ev.metaKey || ev.ctrlKey) || ev.key.toLowerCase() !== "z" || ev.target.closest("input, textarea, select")) return;
   ev.preventDefault();
-  (ev.shiftKey ? redoButton : undoButton).click();
+  restore(ev.shiftKey ? at + 1 : at - 1);
 });
 
 /* ---------- Take it home ---------- */
